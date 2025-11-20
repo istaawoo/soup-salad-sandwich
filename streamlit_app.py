@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 from datetime import datetime
-import time
 
 # Page configuration
 st.set_page_config(
-    page_title="Soup vs Salad vs Sandwich",
+    page_title="Food Classifier - SSS",
     page_icon="🍲",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -60,24 +60,6 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
     
-    /* Answer button styling with hover effects */
-    .answer-button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 0.8rem 1.5rem;
-        border-radius: 8px;
-        font-size: 1em;
-        cursor: pointer;
-        margin: 0.5rem;
-        transition: all 0.3s ease;
-    }
-    
-    .answer-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-    }
-    
     /* Results styling */
     .results-container {
         background: white;
@@ -88,22 +70,6 @@ st.markdown("""
         animation: fadeIn 0.8s ease-in;
     }
     
-    .result-card {
-        text-align: center;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        animation: slideUp 0.6s ease-out;
-    }
-    
-    .percentage-display {
-        font-size: 2.5em;
-        font-weight: bold;
-        color: #667eea;
-        margin: 1rem 0;
-    }
-    
     .explanation-text {
         background: #f0f2f6;
         border-left: 4px solid #667eea;
@@ -112,28 +78,6 @@ st.markdown("""
         margin: 1rem 0;
         line-height: 1.6;
         color: #444;
-    }
-    
-    /* Progress bar */
-    .progress-bar {
-        height: 8px;
-        background: #e0e0e0;
-        border-radius: 10px;
-        margin: 1rem 0;
-        overflow: hidden;
-    }
-    
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        transition: width 0.3s ease;
-    }
-    
-    /* Emoji styling */
-    .emoji-large {
-        font-size: 4em;
-        margin: 1rem 0;
-        animation: bounce 0.6s ease-in-out;
     }
     
     /* Animations */
@@ -156,174 +100,147 @@ st.markdown("""
             transform: translateX(0);
         }
     }
-    
-    @keyframes slideUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @keyframes bounce {
-        0%, 100% {
-            transform: translateY(0);
-        }
-        50% {
-            transform: translateY(-10px);
-        }
-    }
     </style>
 """, unsafe_allow_html=True)
 
 # Initialize session state
 if 'current_question' not in st.session_state:
     st.session_state.current_question = 0
-    st.session_state.soup_score = 0
-    st.session_state.salad_score = 0
-    st.session_state.sandwich_score = 0
+    st.session_state.soup_pct = 33.33
+    st.session_state.salad_pct = 33.33
+    st.session_state.sandwich_pct = 33.33
     st.session_state.quiz_started = False
     st.session_state.quiz_completed = False
+    st.session_state.food_name = ""
+    st.session_state.answers = {}
 
-# Define the quiz questions with their weightages for each category
-# Format: {question, options: [{text, soup_weight, salad_weight, sandwich_weight}]}
+# Define the quiz questions about food characteristics
+# Each answer affects the three percentages
 QUIZ_QUESTIONS = [
     {
-        "question": "🌡️ Do you prefer your food served hot or cold?",
+        "question": "💧 How much liquid content does this food have?",
         "options": [
-            {"text": "Piping hot", "soup": 30, "salad": -10, "sandwich": 10},
-            {"text": "Room temperature", "soup": 15, "salad": 15, "sandwich": 10},
-            {"text": "Cold & refreshing", "soup": -20, "salad": 35, "sandwich": 15},
-            {"text": "Temperature doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Very high - mostly liquid/broth", "soup": +20, "salad": -10, "sandwich": -15},
+            {"text": "Moderate - some liquid", "soup": +10, "salad": 0, "sandwich": -5},
+            {"text": "Low - mostly dry", "soup": -15, "salad": +15, "sandwich": +10},
+            {"text": "No liquid", "soup": -20, "salad": +20, "sandwich": +15},
         ]
     },
     {
-        "question": "🍴 What's your preferred eating utensil?",
+        "question": "🌡️ What temperature is it typically served at?",
         "options": [
-            {"text": "Spoon", "soup": 35, "salad": 10, "sandwich": -15},
-            {"text": "Fork", "soup": 5, "salad": 40, "sandwich": 10},
-            {"text": "Hands", "soup": -30, "salad": -20, "sandwich": 40},
-            {"text": "Knife & Fork", "soup": 10, "salad": 25, "sandwich": 20},
+            {"text": "Hot/steaming", "soup": +20, "salad": -15, "sandwich": 0},
+            {"text": "Warm", "soup": +10, "salad": -5, "sandwich": +5},
+            {"text": "Room temperature", "soup": -5, "salad": +5, "sandwich": +5},
+            {"text": "Cold/chilled", "soup": -20, "salad": +20, "sandwich": +5},
         ]
     },
     {
-        "question": "🥣 How soupy should your meal be?",
+        "question": "🍴 How is it typically eaten?",
         "options": [
-            {"text": "Very soupy/brothy", "soup": 40, "salad": -15, "sandwich": -10},
-            {"text": "Some liquid content", "soup": 20, "salad": 5, "sandwich": 5},
-            {"text": "Dry and crispy", "soup": -35, "salad": 30, "sandwich": 25},
-            {"text": "It varies", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "With a spoon, sipped/slurped", "soup": +25, "salad": -10, "sandwich": -20},
+            {"text": "With a fork", "soup": -5, "salad": +25, "sandwich": -10},
+            {"text": "With hands/fingers", "soup": -15, "salad": -5, "sandwich": +30},
+            {"text": "With knife & fork", "soup": -5, "salad": +15, "sandwich": +5},
         ]
     },
     {
-        "question": "🌿 How much texture variety do you want?",
+        "question": "🥬 What's the main component?",
         "options": [
-            {"text": "Smooth & consistent", "soup": 25, "salad": -10, "sandwich": 5},
-            {"text": "Mixed textures", "soup": 15, "salad": 35, "sandwich": 20},
-            {"text": "Crispy & crunchy", "soup": -15, "salad": 40, "sandwich": 25},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Broth, stock, or liquid base", "soup": +30, "salad": -15, "sandwich": -20},
+            {"text": "Fresh vegetables & greens", "soup": -10, "salad": +30, "sandwich": -5},
+            {"text": "Bread, meat, cheese between bread", "soup": -20, "salad": -10, "sandwich": +35},
+            {"text": "Mix of everything", "soup": 0, "salad": 0, "sandwich": 0},
         ]
     },
     {
-        "question": "⏱️ How long does your ideal meal take to eat?",
+        "question": "📦 What's the primary container/serving vessel?",
         "options": [
-            {"text": "Quick & efficient (5-10 min)", "soup": 20, "salad": 5, "sandwich": 35},
-            {"text": "Leisurely sipping (15-20 min)", "soup": 35, "salad": 10, "sandwich": 5},
-            {"text": "Relaxed grazing (20+ min)", "soup": 10, "salad": 30, "sandwich": 15},
-            {"text": "However long it takes", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Bowl or cup", "soup": +25, "salad": +5, "sandwich": -15},
+            {"text": "Plate", "soup": -10, "salad": +20, "sandwich": +5},
+            {"text": "In/on bread or hand-held", "soup": -20, "salad": -5, "sandwich": +30},
+            {"text": "Doesn't matter/flexible", "soup": 0, "salad": 0, "sandwich": 0},
         ]
     },
     {
-        "question": "🍅 How important is freshness of ingredients?",
+        "question": "🥘 How much solid matter vs liquid?",
         "options": [
-            {"text": "Super important, fresh is best", "soup": 10, "salad": 40, "sandwich": 20},
-            {"text": "Somewhat important", "soup": 15, "salad": 20, "sandwich": 20},
-            {"text": "Not really, comfort counts more", "soup": 25, "salad": 5, "sandwich": 20},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Mostly liquid with bits in it", "soup": +20, "salad": -15, "sandwich": -15},
+            {"text": "Balanced - equal solids and liquid", "soup": +5, "salad": +5, "sandwich": 0},
+            {"text": "Mostly solid pieces", "soup": -15, "salad": +15, "sandwich": +5},
+            {"text": "100% solid/dry - no liquid", "soup": -25, "salad": +20, "sandwich": +15},
         ]
     },
     {
-        "question": "🎨 Do you like customizing your food?",
+        "question": "🌿 How much texture variety?",
         "options": [
-            {"text": "Yes, lots of toppings & mix-ins", "soup": 15, "salad": 40, "sandwich": 35},
-            {"text": "Some customization", "soup": 15, "salad": 15, "sandwich": 15},
-            {"text": "Nah, keep it simple", "soup": 25, "salad": -10, "sandwich": 10},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Smooth & consistent (creamy)", "soup": +15, "salad": -10, "sandwich": -5},
+            {"text": "Varied textures - crunchy & soft", "soup": -5, "salad": +25, "sandwich": +10},
+            {"text": "Multiple layers & textures", "soup": -5, "salad": +10, "sandwich": +20},
+            {"text": "Uniform texture", "soup": +10, "salad": -10, "sandwich": 0},
         ]
     },
     {
-        "question": "🥘 Do you enjoy slurping/making noise while eating?",
+        "question": "⏱️ How long does it take to eat?",
         "options": [
-            {"text": "YES! It's part of the fun", "soup": 35, "salad": -20, "sandwich": -15},
-            {"text": "Sometimes", "soup": 15, "salad": 5, "sandwich": 5},
-            {"text": "Prefer eating quietly", "soup": -15, "salad": 30, "sandwich": 20},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Fast - under 5 minutes", "soup": -10, "salad": -10, "sandwich": +25},
+            {"text": "5-10 minutes", "soup": +5, "salad": +5, "sandwich": +15},
+            {"text": "10-20 minutes (leisurely sipping)", "soup": +20, "salad": +10, "sandwich": -5},
+            {"text": "20+ minutes (prolonged eating)", "soup": +10, "salad": +20, "sandwich": -10},
         ]
     },
     {
-        "question": "🧊 How important is temperature consistency?",
+        "question": "🧅 How many distinct ingredients/components?",
         "options": [
-            {"text": "Stays hot throughout", "soup": 30, "salad": 5, "sandwich": 10},
-            {"text": "Can be any temperature", "soup": 10, "salad": 15, "sandwich": 15},
-            {"text": "Stays cold & crisp", "soup": -20, "salad": 35, "sandwich": 15},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Few (1-3 main ingredients)", "soup": +15, "salad": -10, "sandwich": +10},
+            {"text": "Several (4-6 ingredients)", "soup": +5, "salad": +10, "sandwich": +10},
+            {"text": "Many (7+ ingredients)", "soup": -5, "salad": +20, "sandwich": +10},
+            {"text": "Infinite variations possible", "soup": 0, "salad": +15, "sandwich": +20},
         ]
     },
     {
-        "question": "🌟 How healthy should your meal be?",
+        "question": "🧴 Is there a binding/sauce element?",
         "options": [
-            {"text": "Super healthy & nutritious", "soup": 10, "salad": 45, "sandwich": 10},
-            {"text": "Reasonably healthy", "soup": 20, "salad": 25, "sandwich": 20},
-            {"text": "Indulgent & comforting", "soup": 25, "salad": -15, "sandwich": 30},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Yes - broth or liquid base", "soup": +25, "salad": -10, "sandwich": -5},
+            {"text": "Yes - creamy dressing/sauce", "soup": +10, "salad": +15, "sandwich": +5},
+            {"text": "Light or no sauce", "soup": -15, "salad": +20, "sandwich": +10},
+            {"text": "None", "soup": -20, "salad": +10, "sandwich": +20},
         ]
     },
     {
-        "question": "👥 How do you feel about eating with others?",
+        "question": "🔥 Can it get cold and still be itself?",
         "options": [
-            {"text": "Love sharing a communal bowl", "soup": 35, "salad": 20, "sandwich": 10},
-            {"text": "Can share but prefer individual", "soup": 15, "salad": 15, "sandwich": 15},
-            {"text": "Prefer eating alone/my own portion", "soup": 5, "salad": 10, "sandwich": 25},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "No - it's ruined cold", "soup": +20, "salad": -15, "sandwich": +5},
+            {"text": "Somewhat - still okay but different", "soup": +10, "salad": +5, "sandwich": +10},
+            {"text": "Yes - just as good cold", "soup": -15, "salad": +25, "sandwich": +10},
+            {"text": "Better cold", "soup": -25, "salad": +30, "sandwich": +5},
         ]
     },
     {
-        "question": "🌪️ What's your relationship with mess?",
+        "question": "👃 Does it have a strong, aromatic scent?",
         "options": [
-            {"text": "Messy eating is fun", "soup": 20, "salad": -10, "sandwich": 5},
-            {"text": "A little mess is okay", "soup": 15, "salad": 15, "sandwich": 20},
-            {"text": "I prefer eating neat & clean", "soup": -10, "salad": 35, "sandwich": 30},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
+            {"text": "Yes - very aromatic & warming", "soup": +15, "salad": -5, "sandwich": -10},
+            {"text": "Moderately aromatic", "soup": +5, "salad": +5, "sandwich": +5},
+            {"text": "Light or subtle aroma", "soup": -5, "salad": +15, "sandwich": +10},
+            {"text": "Not aromatic", "soup": -10, "salad": +10, "sandwich": +10},
         ]
     },
     {
-        "question": "🌍 What's your eating style?",
+        "question": "🤲 Is it messy to eat?",
         "options": [
-            {"text": "Comfort food lover", "soup": 35, "salad": -10, "sandwich": 25},
-            {"text": "Health-conscious", "soup": 10, "salad": 40, "sandwich": 15},
-            {"text": "Quick & convenient", "soup": 5, "salad": 5, "sandwich": 35},
-            {"text": "Adventurous & experimental", "soup": 15, "salad": 20, "sandwich": 15},
+            {"text": "Very messy", "soup": +15, "salad": -5, "sandwich": 0},
+            {"text": "Moderately messy", "soup": +10, "salad": +5, "sandwich": +5},
+            {"text": "Relatively clean", "soup": -5, "salad": +15, "sandwich": +10},
+            {"text": "Very clean/neat", "soup": -15, "salad": +20, "sandwich": +15},
         ]
     },
     {
-        "question": "❄️ How do you feel in different seasons?",
+        "question": "🎯 Primary eating context?",
         "options": [
-            {"text": "Love warm comfort in cold months", "soup": 40, "salad": -15, "sandwich": 15},
-            {"text": "Love fresh & light in warm months", "soup": -20, "salad": 40, "sandwich": 10},
-            {"text": "Same preferences year-round", "soup": 5, "salad": 5, "sandwich": 5},
-            {"text": "Doesn't matter", "soup": 5, "salad": 5, "sandwich": 5},
-        ]
-    },
-    {
-        "question": "🎯 Pick your vibe!",
-        "options": [
-            {"text": "Cozy & warming", "soup": 40, "salad": 5, "sandwich": 10},
-            {"text": "Fresh & energetic", "soup": -10, "salad": 45, "sandwich": 15},
-            {"text": "Quick & satisfying", "soup": 10, "salad": 5, "sandwich": 40},
-            {"text": "Mix of everything", "soup": 15, "salad": 15, "sandwich": 15},
+            {"text": "Comfort/warming meal", "soup": +20, "salad": -10, "sandwich": +5},
+            {"text": "Healthy option", "soup": -5, "salad": +25, "sandwich": 0},
+            {"text": "Quick/convenient grab", "soup": -15, "salad": 0, "sandwich": +30},
+            {"text": "Customizable experience", "soup": 0, "salad": +20, "sandwich": +15},
         ]
     },
 ]
@@ -332,8 +249,8 @@ def render_title():
     """Render the main title section"""
     st.markdown("""
     <div class="title-container">
-        <h1>🍲 SOUP vs SALAD vs SANDWICH 🥗🥪</h1>
-        <p class="subtitle">Discover which food defines YOUR personality!</p>
+        <h1>🍲 FOOD CLASSIFIER 🥗🥪</h1>
+        <p class="subtitle">Is your food a Soup, Salad, or Sandwich?</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -361,10 +278,28 @@ def render_question(question_num):
     for idx, option in enumerate(question_data["options"]):
         with cols[idx % 2]:
             if st.button(option["text"], key=f"q{question_num}_o{idx}", use_container_width=True):
-                # Update scores
-                st.session_state.soup_score += option["soup"]
-                st.session_state.salad_score += option["salad"]
-                st.session_state.sandwich_score += option["sandwich"]
+                # Update percentages based on the adjustment values
+                adjustment = option
+                total_adjustment = adjustment["soup"] + adjustment["salad"] + adjustment["sandwich"]
+                
+                # Apply the adjustments
+                st.session_state.soup_pct += adjustment["soup"]
+                st.session_state.salad_pct += adjustment["salad"]
+                st.session_state.sandwich_pct += adjustment["sandwich"]
+                
+                # Ensure no negative percentages and normalize
+                st.session_state.soup_pct = max(0, st.session_state.soup_pct)
+                st.session_state.salad_pct = max(0, st.session_state.salad_pct)
+                st.session_state.sandwich_pct = max(0, st.session_state.sandwich_pct)
+                
+                # Normalize to 100
+                total = st.session_state.soup_pct + st.session_state.salad_pct + st.session_state.sandwich_pct
+                if total > 0:
+                    st.session_state.soup_pct = (st.session_state.soup_pct / total) * 100
+                    st.session_state.salad_pct = (st.session_state.salad_pct / total) * 100
+                    st.session_state.sandwich_pct = (st.session_state.sandwich_pct / total) * 100
+                
+                st.session_state.answers[question_num] = option["text"]
                 
                 # Move to next question
                 st.session_state.current_question += 1
@@ -374,209 +309,228 @@ def render_question(question_num):
                 
                 st.rerun()
 
-def calculate_percentages():
-    """Calculate final percentages"""
-    total = st.session_state.soup_score + st.session_state.salad_score + st.session_state.sandwich_score
+def create_pie_chart():
+    """Create an animated pie chart"""
+    fig = go.Figure(data=[go.Pie(
+        labels=['🍲 SOUP', '🥗 SALAD', '🥪 SANDWICH'],
+        values=[st.session_state.soup_pct, st.session_state.salad_pct, st.session_state.sandwich_pct],
+        marker=dict(colors=['#FF6B6B', '#4ECDC4', '#FFE66D']),
+        textinfo='label+percent',
+        textposition='inside',
+        hovertemplate='<b>%{label}</b><br>%{value:.1f}%<extra></extra>',
+        textfont=dict(size=14, color='white'),
+        marker_line=dict(color='white', width=2)
+    )])
     
-    if total == 0:
-        return 33.33, 33.33, 33.33
+    fig.update_layout(
+        showlegend=True,
+        height=500,
+        font=dict(size=16),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=0, r=0, t=0, b=0)
+    )
     
-    soup_pct = (st.session_state.soup_score / total * 100) if total > 0 else 0
-    salad_pct = (st.session_state.salad_score / total * 100) if total > 0 else 0
-    sandwich_pct = (st.session_state.sandwich_score / total * 100) if total > 0 else 0
-    
-    # Handle negative scores
-    soup_pct = max(0, soup_pct)
-    salad_pct = max(0, salad_pct)
-    sandwich_pct = max(0, sandwich_pct)
-    
-    # Normalize
-    total_pct = soup_pct + salad_pct + sandwich_pct
-    if total_pct > 0:
-        soup_pct = (soup_pct / total_pct) * 100
-        salad_pct = (salad_pct / total_pct) * 100
-        sandwich_pct = (sandwich_pct / total_pct) * 100
-    
-    return soup_pct, salad_pct, sandwich_pct
+    return fig
 
-def get_explanations(soup_pct, salad_pct, sandwich_pct):
-    """Get explanations for each food type"""
-    explanations = {
+def get_winner_description():
+    """Get description based on winning category"""
+    percentages = {
+        "soup": st.session_state.soup_pct,
+        "salad": st.session_state.salad_pct,
+        "sandwich": st.session_state.sandwich_pct
+    }
+    
+    winner = max(percentages, key=percentages.get)
+    
+    descriptions = {
         "soup": {
-            "title": "🍲 SOUP",
-            "description": """
-            You're a **Soup Person**! You value comfort, warmth, and the cozy feeling of a hearty meal. 
-            You appreciate taking your time to savor flavors, don't mind a little mess, and love the communal 
-            aspect of sharing a bowl. You're likely drawn to comfort and nostalgia, enjoying meals that feel like 
-            a warm hug. Soups represent your preference for warmth, simplicity, and soul-satisfying nourishment.
-            """
+            "title": "🍲 This is SOUP!",
+            "emoji": "🍲",
+            "description": "This food has the characteristics of a **classic soup**. It's likely liquid-based, warm, comforting, and meant to be sipped or spooned. Think broth, stew, ramen, or chowder!",
+            "characteristics": [
+                "✓ Contains significant liquid/broth",
+                "✓ Served hot or warm",
+                "✓ Eaten with a spoon",
+                "✓ Aromatic and warming",
+                "✓ Takes time to enjoy"
+            ]
         },
         "salad": {
-            "title": "🥗 SALAD",
-            "description": """
-            You're a **Salad Person**! You prioritize freshness, health, and variety in your meals. You love 
-            customization and taking control of exactly what goes on your plate. You appreciate crispy textures, 
-            clean eating, and meals that feel light and energizing. You're likely health-conscious, adventurous 
-            with ingredients, and you believe eating should be both nourishing AND delicious.
-            """
+            "title": "🥗 This is SALAD!",
+            "emoji": "🥗",
+            "description": "This food has the characteristics of a **fresh salad**. It's likely crisp, fresh, customizable, and meant to be eaten with a fork or hands. Think greens, grain bowls, or ceviche!",
+            "characteristics": [
+                "✓ Fresh, crisp components",
+                "✓ Served cold or room temperature",
+                "✓ Eaten with a fork or hands",
+                "✓ Multiple varied ingredients",
+                "✓ Healthy and light"
+            ]
         },
         "sandwich": {
-            "title": "🥪 SANDWICH",
-            "description": """
-            You're a **Sandwich Person**! You value efficiency, convenience, and practicality in your meals. 
-            You appreciate eating with your hands, quick satisfaction, and the versatility of layering flavors. 
-            You're likely someone who's always on the go, loves customization on-the-fly, and appreciates meals 
-            that are straightforward and satisfying. Sandwiches represent your appreciation for simplicity and 
-            effectiveness.
-            """
+            "title": "🥪 This is SANDWICH!",
+            "emoji": "🥪",
+            "description": "This food has the characteristics of a **sandwich**. It's likely portable, quick to eat, hand-held, and features layers of bread and fillings. Think sandwiches, wraps, tacos, or burgers!",
+            "characteristics": [
+                "✓ Bread-based or hand-held",
+                "✓ Eaten quickly",
+                "✓ Portable and convenient",
+                "✓ Eaten with hands",
+                "✓ Customizable layers"
+            ]
         }
     }
-    return explanations
+    
+    return descriptions[winner]
 
 def render_results():
-    """Render results page"""
-    soup_pct, salad_pct, sandwich_pct = calculate_percentages()
-    
-    # Find the winner
-    percentages = {"🍲 SOUP": soup_pct, "🥗 SALAD": salad_pct, "🥪 SANDWICH": sandwich_pct}
-    winner = max(percentages, key=percentages.get)
-    winner_pct = percentages[winner]
-    
+    """Render results page with pie chart"""
     st.markdown("""
     <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
     border-radius: 15px; color: white; margin-bottom: 2rem;">
-        <h2 style="margin-top: 0;">🎉 RESULTS 🎉</h2>
-        <p style="font-size: 1.2em;">Here's what you are...</p>
+        <h2 style="margin-top: 0;">✨ FOOD CLASSIFICATION RESULTS ✨</h2>
     </div>
     """, unsafe_allow_html=True)
     
-    # Results in columns
+    # Display pie chart
+    fig = create_pie_chart()
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Get winner info
+    winner_info = get_winner_description()
+    
+    # Display winner
+    st.markdown(f"""
+    <div class="results-container">
+        <h2 style="text-align: center; margin-top: 0;">{winner_info['title']}</h2>
+        <p style="font-size: 1.1em; line-height: 1.6;">{winner_info['description']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Display characteristics
+    st.markdown("### 🎯 Key Characteristics:")
     col1, col2, col3 = st.columns(3)
     
-    results_data = [
-        ("🍲", "SOUP", soup_pct, "Warm & Comforting"),
-        ("🥗", "SALAD", salad_pct, "Fresh & Healthy"),
-        ("🥪", "SANDWICH", sandwich_pct, "Quick & Convenient"),
-    ]
+    for idx, char in enumerate(winner_info['characteristics']):
+        if idx < 2:
+            col1.markdown(char)
+        elif idx < 4:
+            col2.markdown(char)
+        else:
+            col3.markdown(char)
     
-    colors = ["#FF6B6B", "#4ECDC4", "#FFE66D"]
-    
-    for col, (emoji, name, pct, subtitle) in zip([col1, col2, col3], results_data):
-        with col:
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, {colors[results_data.index((emoji, name, pct, subtitle))]} 0%, 
-            {colors[results_data.index((emoji, name, pct, subtitle))]}dd 100%); 
-            border-radius: 12px; padding: 2rem; text-align: center; color: white;">
-                <div style="font-size: 3em; margin: 1rem 0;">{emoji}</div>
-                <div style="font-size: 1.5em; font-weight: bold; margin: 0.5rem 0;">{name}</div>
-                <div style="font-size: 0.9em; margin-bottom: 1rem; opacity: 0.9;">{subtitle}</div>
-                <div style="font-size: 2.5em; font-weight: bold;">{pct:.1f}%</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
+    # Display breakdown
     st.markdown("---")
+    st.markdown("### 📊 Complete Breakdown:")
     
-    # Get explanations
-    explanations = get_explanations(soup_pct, salad_pct, sandwich_pct)
-    
-    # Show detailed explanations
-    st.markdown("### 📊 Detailed Breakdown")
-    
-    tabs = st.tabs(["🍲 Soup", "🥗 Salad", "🥪 Sandwich"])
-    
-    for tab, (food_type, exp_data) in zip(tabs, explanations.items()):
-        with tab:
-            col_left, col_right = st.columns([1, 2])
-            
-            with col_left:
-                if food_type == "soup":
-                    st.markdown(f"<div class='emoji-large'>🍲</div>", unsafe_allow_html=True)
-                    pct_val = soup_pct
-                elif food_type == "salad":
-                    st.markdown(f"<div class='emoji-large'>🥗</div>", unsafe_allow_html=True)
-                    pct_val = salad_pct
-                else:
-                    st.markdown(f"<div class='emoji-large'>🥪</div>", unsafe_allow_html=True)
-                    pct_val = sandwich_pct
-                
-                st.markdown(f"<div class='percentage-display'>{pct_val:.1f}%</div>", unsafe_allow_html=True)
-            
-            with col_right:
-                st.markdown(f"<div class='explanation-text'>{exp_data['description']}</div>", unsafe_allow_html=True)
-    
-    # Why sections for each food
-    st.markdown("### 🤔 Why Each Food Got That Score")
-    
-    why_data = {
-        "🍲 SOUP": {
-            "high": ["You love warmth and comfort", "Preference for sipping & taking time", "Don't mind slurping", "Value communal eating"],
-            "low": ["You prefer eating quickly", "Don't want hot liquids", "Prefer crispy textures", "Like eating with your hands"]
-        },
-        "🥗 SALAD": {
-            "high": ["You prioritize health & freshness", "Love customization", "Prefer crispy textures", "Like eating neat & clean"],
-            "low": ["You value comfort over health", "Prefer warm foods", "Don't like varying textures", "Would rather eat quickly"]
-        },
-        "🥪 SANDWICH": {
-            "high": ["You prefer eating with your hands", "Want quick & convenient meals", "Like eating on-the-go", "Value simplicity"],
-            "low": ["You prefer warm, liquid-based foods", "Take time to enjoy meals", "Don't like handling food", "Want complex flavor combinations"]
-        }
+    breakdown_data = {
+        'Category': ['SOUP', 'SALAD', 'SANDWICH'],
+        'Percentage': [f"{st.session_state.soup_pct:.1f}%", 
+                       f"{st.session_state.salad_pct:.1f}%", 
+                       f"{st.session_state.sandwich_pct:.1f}%"],
     }
     
-    col1, col2, col3 = st.columns(3)
-    for col, (food, data) in zip([col1, col2, col3], why_data.items()):
-        with col:
-            st.markdown(f"**{food}**")
-            st.markdown("**✅ Why it scored high:**")
-            for reason in data["high"][:2]:
-                st.markdown(f"• {reason}")
-            st.markdown("**❌ Why it scored lower:**")
-            for reason in data["low"][:2]:
-                st.markdown(f"• {reason}")
+    df = pd.DataFrame(breakdown_data)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    
+    # Show reasoning
+    st.markdown("### 💡 How We Classified It:")
+    
+    reason_cols = st.columns(3)
+    
+    if st.session_state.soup_pct > 30:
+        with reason_cols[0]:
+            st.markdown(f"""
+            **🍲 SOUP ({st.session_state.soup_pct:.1f}%)**
+            
+            Strong liquid content, warm temperature, and spoon-eating indicate soup characteristics.
+            """)
+    else:
+        with reason_cols[0]:
+            st.markdown(f"**🍲 SOUP ({st.session_state.soup_pct:.1f}%)**\n\nLess soup-like characteristics.")
+    
+    if st.session_state.salad_pct > 30:
+        with reason_cols[1]:
+            st.markdown(f"""
+            **🥗 SALAD ({st.session_state.salad_pct:.1f}%)**
+            
+            Fresh ingredients, cold temperature, and varied textures indicate salad characteristics.
+            """)
+    else:
+        with reason_cols[1]:
+            st.markdown(f"**🥗 SALAD ({st.session_state.salad_pct:.1f}%)**\n\nLess salad-like characteristics.")
+    
+    if st.session_state.sandwich_pct > 30:
+        with reason_cols[2]:
+            st.markdown(f"""
+            **🥪 SANDWICH ({st.session_state.sandwich_pct:.1f}%)**
+            
+            Bread-based, hand-held, and quick to eat indicate sandwich characteristics.
+            """)
+    else:
+        with reason_cols[2]:
+            st.markdown(f"**🥪 SANDWICH ({st.session_state.sandwich_pct:.1f}%)**\n\nLess sandwich-like characteristics.")
     
     # Reset button
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🔄 Retake Quiz", use_container_width=True):
+        if st.button("🔄 Classify Another Food", use_container_width=True):
             st.session_state.current_question = 0
-            st.session_state.soup_score = 0
-            st.session_state.salad_score = 0
-            st.session_state.sandwich_score = 0
+            st.session_state.soup_pct = 33.33
+            st.session_state.salad_pct = 33.33
+            st.session_state.sandwich_pct = 33.33
             st.session_state.quiz_started = False
             st.session_state.quiz_completed = False
+            st.session_state.food_name = ""
+            st.session_state.answers = {}
             st.rerun()
 
 # Main app logic
 render_title()
 
 if not st.session_state.quiz_started and not st.session_state.quiz_completed:
+    # Welcome screen
     st.markdown("""
     <div class="question-container">
-        <h3>Ready to find out your perfect food match? 🌟</h3>
-        <p>Answer 15 quick questions about your eating preferences and we'll reveal whether you're 
-        more of a <strong>Soup</strong>, <strong>Salad</strong>, or <strong>Sandwich</strong> person!</p>
-        <p>This fun quiz analyzes your preferences for:</p>
+        <h3>🎯 What is this food?</h3>
+        <p>Thinking about a specific food? Tell us what it is, and we'll classify whether it's more of a 
+        <strong>Soup</strong>, <strong>Salad</strong>, or <strong>Sandwich</strong> based on its characteristics!</p>
+        <p>We'll ask you 14 questions about:</p>
         <ul>
-            <li>🌡️ Temperature preferences</li>
-            <li>🍴 Eating utensils</li>
-            <li>🥒 Texture preferences</li>
-            <li>⏱️ Eating speed & style</li>
-            <li>🎨 Customization desires</li>
-            <li>✨ And so much more!</li>
+            <li>💧 Liquid content</li>
+            <li>🌡️ Temperature</li>
+            <li>🍴 How it's eaten</li>
+            <li>🥬 Main components</li>
+            <li>📦 Serving vessel</li>
+            <li>🧅 Number of ingredients</li>
+            <li>✨ And more!</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
     
+    # Input for food name
+    st.markdown("### What food are we classifying?")
+    food_input = st.text_input("Enter the name of the food:", placeholder="e.g., Pizza, Pasta, Burrito, Greek Salad...")
+    
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🚀 START THE QUIZ", use_container_width=True, key="start_button"):
-            st.session_state.quiz_started = True
-            st.rerun()
+        if st.button("🚀 START CLASSIFICATION", use_container_width=True, key="start_button"):
+            if food_input.strip():
+                st.session_state.food_name = food_input
+                st.session_state.quiz_started = True
+                st.rerun()
+            else:
+                st.warning("Please enter a food name!")
 
 elif st.session_state.quiz_completed:
     render_results()
 
 else:
+    # Display current food being classified
+    st.markdown(f"### Classifying: **{st.session_state.food_name}**")
+    
     render_question(st.session_state.current_question)
 
 
