@@ -249,42 +249,46 @@ with left:
 
     # Embed animated circular progress using HTML/JS
     # We pass the percentages into the html snippet so it animates to the final value
+    # Use a placeholder and .replace() to safely insert JSON (avoids % formatting issues)
     pct_json = json.dumps(result['percentages'])
-    circular_widget = f"""
+
+    circular_widget = """
     <div id="radial-container" style="display:flex;gap:18px;justify-content:flex-start;align-items:center;">
       <div style="width:140px;">
-        <div id="c-soup" style="width:140px;height:140px;border-radius:70px;display:flex;align-items:center;justify-content:center;background:conic-gradient(#2dd4bf 0 0%, rgba(255,255,255,0.08) 0% 100%);transition: all 1s ease;"></div>
+        <div id="c-soup" style="width:140px;height:140px;border-radius:70px;display:flex;align-items:center;justify-content:center;background:conic-gradient(#2dd4bf 0% 0%, rgba(255,255,255,0.08) 0% 100%);transition: all 1s ease;"></div>
         <div style="text-align:center;margin-top:8px;font-weight:700;">Soup</div>
       </div>
       <div style="width:140px;">
-        <div id="c-salad" style="width:140px;height:140px;border-radius:70px;display:flex;align-items:center;justify-content:center;background:conic-gradient(#60a5fa 0 0%, rgba(255,255,255,0.08) 0% 100%);transition: all 1s ease;"></div>
+        <div id="c-salad" style="width:140px;height:140px;border-radius:70px;display:flex;align-items:center;justify-content:center;background:conic-gradient(#60a5fa 0% 0%, rgba(255,255,255,0.08) 0% 100%);transition: all 1s ease;"></div>
         <div style="text-align:center;margin-top:8px;font-weight:700;">Salad</div>
       </div>
       <div style="width:140px;">
-        <div id="c-sandwich" style="width:140px;height:140px;border-radius:70px;display:flex;align-items:center;justify-content:center;background:conic-gradient(#f97316 0 0%, rgba(255,255,255,0.08) 0% 100%);transition: all 1s ease;"></div>
+        <div id="c-sandwich" style="width:140px;height:140px;border-radius:70px;display:flex;align-items:center;justify-content:center;background:conic-gradient(#f97316 0% 0%, rgba(255,255,255,0.08) 0% 100%);transition: all 1s ease;"></div>
         <div style="text-align:center;margin-top:8px;font-weight:700;">Sandwich</div>
       </div>
     </div>
 
     <script>
-    const pct = {pct_json};
-    // animate conic-gradient to percentage
-    function animateCircle(id, val, color) {{
+    const pct = ___PCT___;
+
+    function animateCircle(id, val, color) {
       const el = document.getElementById(id);
       if(!el) return;
-      // inner text element
       el.innerHTML = '<div style="font-weight:800;color:white;font-size:20px;">0%</div>';
-      setTimeout(()=> {{
+      setTimeout(()=> {
         const circleVal = Math.round(val);
         el.style.background = `conic-gradient(${color} 0% ${circleVal}%, rgba(255,255,255,0.06) ${circleVal}% 100%)`;
         el.innerHTML = '<div style="font-weight:800;color:white;font-size:20px;">'+circleVal+'%</div>';
-      }}, 120);
-    }}
+      }, 120);
+    }
+
     animateCircle('c-soup', pct.soup, '#06b6d4');
     animateCircle('c-salad', pct.salad, '#3b82f6');
     animateCircle('c-sandwich', pct.sandwich, '#fb923c');
     </script>
     """
+
+    circular_widget = circular_widget.replace("___PCT___", pct_json)
     st.components.v1.html(circular_widget, height=220)
 
     st.markdown("<hr/>", unsafe_allow_html=True)
