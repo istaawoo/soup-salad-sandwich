@@ -10,64 +10,54 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS - Fixed text colors to avoid white-on-white
+# Custom CSS - dark theme and contrast-safe colors
 st.markdown("""
     <style>
-    body { background: linear-gradient(135deg, #f7fbff 0%, #ffffff 100%); }
+    body { background: linear-gradient(135deg, #0b1226 0%, #17233d 100%); color: #e6eef8; }
     .title-container { 
         text-align: center; 
-        padding: 2rem 0; 
-        border-radius: 15px; 
+        padding: 1.6rem 0; 
+        border-radius: 12px; 
         margin-bottom: 1rem; 
         animation: fadeIn 0.6s ease-in; 
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+        background: linear-gradient(135deg, #15284b 0%, #223a66 100%); 
     }
     .title-container h1 { 
-        color: white; 
-        font-size: 2.4em; 
+        color: #f8fbff; 
+        font-size: 2.2em; 
         margin: 0; 
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3); 
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.6); 
     }
-    .title-container p {
-        color: white;
-    }
+    .title-container p { color: #dceeff; margin-top: 0.25rem }
+
+    /* Dark cards for questions and results */
     .question-container { 
-        background: white; 
-        border-radius: 12px; 
-        padding: 1.5rem; 
-        margin: 1rem 0; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.06); 
-        border-left: 5px solid #667eea; 
+        background: linear-gradient(180deg, #0f2138 0%, #0b1a2d 100%); 
+        border-radius: 10px; 
+        padding: 1.2rem; 
+        margin: 0.8rem 0; 
+        box-shadow: 0 6px 20px rgba(5,12,30,0.6); 
+        border-left: 4px solid #274b94; 
     }
     .question-text { 
-        font-size: 1.15em; 
-        font-weight: 600; 
-        color: #222; 
-        margin-bottom: 1rem; 
+        font-size: 1.05em; 
+        font-weight: 700; 
+        color: #eaf3ff; 
+        margin-bottom: 0.9rem; 
     }
     .results-container { 
-        background: white; 
-        border-radius: 12px; 
-        padding: 1.5rem; 
-        box-shadow: 0 6px 20px rgba(0,0,0,0.08); 
+        background: linear-gradient(180deg, #0f2138 0%, #071425 100%); 
+        border-radius: 10px; 
+        padding: 1rem; 
+        box-shadow: 0 6px 24px rgba(3,8,20,0.65); 
+        color: #eaf3ff;
     }
-    .explanation-box {
-        background: #f0f4f8;
-        border-left: 4px solid #667eea;
-        padding: 1rem;
-        border-radius: 6px;
-        color: #222;
-        margin: 0.5rem 0;
-    }
-    .reasoning-box {
-        background: #f9f9f9;
-        border-left: 4px solid #764ba2;
-        padding: 0.8rem;
-        border-radius: 6px;
-        color: #222;
-        margin: 0.3rem 0;
-        font-size: 0.95em;
-    }
+    .explanation-box { background: transparent; padding: 0.6rem; border-left: 3px solid #274b94; color: #dceeff; margin: 0.4rem 0; }
+    .reasoning-box { background: rgba(255,255,255,0.02); padding: 0.8rem; border-radius: 6px; color: #e6f0ff; margin: 0.4rem 0; }
+
+    /* Buttons and radio styling fallback */
+    .stButton>button { background: linear-gradient(90deg,#2b4f9b,#3b6fb2); color: white; }
+
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 """, unsafe_allow_html=True)
@@ -186,18 +176,18 @@ def normalize_pcts(soup, salad, sandwich):
     total = soup + salad + sandwich
     return (soup / total * 100, salad / total * 100, sandwich / total * 100)
 
-# Create pie chart with Plotly
 def create_pie_chart(soup_pct, salad_pct, sandwich_pct):
     fig = go.Figure(data=[go.Pie(
-        labels=['SOUP', 'SALAD', 'SANDWICH'],
-        values=[soup_pct, salad_pct, sandwich_pct],
-        marker=dict(colors=['#FF8A80', '#8CE99A', '#FFD166']),
-        textposition='inside',
-        texttemplate='%{label}<br>%{value:.1f}%',
-        hovertemplate='<b>%{label}</b><br>%{value:.1f}%<extra></extra>',
-        textfont=dict(size=14, color='white'),
-        marker_line=dict(color='white', width=2)
-    )])
+    labels=['SOUP', 'SALAD', 'SANDWICH'],
+    values=[soup_pct, salad_pct, sandwich_pct],
+    marker=dict(colors=['#FF5252', '#00C853', '#FFD32F']),  # more vibrant
+    textposition='inside',
+    texttemplate='%{label}<br>%{value:.1f}%',
+    hovertemplate='<b>%{label}</b><br>%{value:.1f}%<extra></extra>',
+    textfont=dict(size=14, color='#222222'),  # dark text for readability
+    marker_line=dict(color='white', width=2)
+)])
+
     fig.update_layout(
         showlegend=False,
         height=400,
@@ -207,6 +197,7 @@ def create_pie_chart(soup_pct, salad_pct, sandwich_pct):
         margin=dict(l=20, r=20, t=20, b=20)
     )
     return fig
+
 
 # Get the winner and build reasoning
 def get_winner_analysis(soup_pct, salad_pct, sandwich_pct, reasoning_data):
@@ -218,17 +209,20 @@ def get_winner_analysis(soup_pct, salad_pct, sandwich_pct, reasoning_data):
     salad_reasons = []
     sandwich_reasons = []
     
-    for q_idx, option_text, impacts in reasoning_data:
+    for q_idx, option_text, impacts, opt_obj in reasoning_data:
         reason_key_soup = f"reason_soup"
         reason_key_salad = f"reason_salad"
         reason_key_sandwich = f"reason_sandwich"
         
-        # Find the option that was selected
+        # Find the option that was selected (if we didn't already store it)
         selected_option = None
-        for opt in QUIZ_QUESTIONS[q_idx]["options"]:
-            if opt["text"] == option_text:
-                selected_option = opt
-                break
+        if isinstance(opt_obj, dict) and opt_obj:
+            selected_option = opt_obj
+        else:
+            for opt in QUIZ_QUESTIONS[q_idx]["options"]:
+                if opt["text"] == option_text:
+                    selected_option = opt
+                    break
         
         if selected_option:
             if reason_key_soup in selected_option:
@@ -239,6 +233,122 @@ def get_winner_analysis(soup_pct, salad_pct, sandwich_pct, reasoning_data):
                 sandwich_reasons.append(selected_option[reason_key_sandwich])
     
     return winner, soup_reasons, salad_reasons, sandwich_reasons
+
+
+def build_two_reason_summary(winner, reasoning_data):
+    """Build exactly two concise reasons: either two supporting reasons for the winner,
+    or one opposing + one supporting. Returns a single string (one or two sentences).
+    """
+    def clean(text):
+        if not text:
+            return ""
+        return text.replace('—', ',').replace('*', '').strip()
+
+    key = winner.lower()
+    supporting = []  # (magnitude, text)
+    opposing = []
+
+    for q_idx, option_text, impacts, opt_obj in reasoning_data:
+        if not impacts or key not in impacts:
+            continue
+        val = impacts.get(key, 0)
+        # Find explicit reason string from option object if available
+        reason_text = None
+        if isinstance(opt_obj, dict):
+            reason_text = opt_obj.get(f"reason_{key}")
+        if not reason_text:
+            reason_text = option_text
+
+        reason_text = clean(reason_text)
+        if val > 0:
+            supporting.append((val, reason_text))
+        elif val < 0:
+            opposing.append((abs(val), reason_text))
+
+    # sort by magnitude desc
+    supporting.sort(reverse=True, key=lambda x: x[0])
+    opposing.sort(reverse=True, key=lambda x: x[0])
+
+    # If we have two supporting reasons, return them as two short sentences
+    if len(supporting) >= 2:
+        s1 = supporting[0][1]
+        s2 = supporting[1][1]
+        return f"{s1}. {s2}."
+
+    # If we have one supporting and at least one opposing, return a combined sentence
+    if len(supporting) == 1 and len(opposing) >= 1:
+        opp = opposing[0][1]
+        sup = supporting[0][1]
+        return f"Despite {opp}, because {sup}."
+
+    # Fallbacks: prefer one supporting + next best opposing or two top contributors
+    if len(supporting) == 1:
+        s1 = supporting[0][1]
+        # try to find another contributor (opposing or neutral)
+        if opposing:
+            o1 = opposing[0][1]
+            return f"Despite {o1}, because {s1}."
+        return f"{s1}."
+
+    # If no supporting reasons, pick top two opposing or available reasons across data
+    combined = opposing[:2]
+    if len(combined) >= 2:
+        return f"Despite {combined[0][1]}, because {combined[1][1]}."
+
+    if combined:
+        return f"{combined[0][1]}."
+
+    return "No concise reasons available."
+
+
+def build_three_bullets(winner, reasoning_data):
+    """Return up to three short bullet points (strings) summarizing key signals.
+    Does not emit category headings; returns cleaned short phrases.
+    """
+    def clean(text):
+        if not text:
+            return ""
+        return text.replace('—', ',').replace('*', '').strip()
+
+    key = winner.lower()
+    supporting = []  # (magnitude, text)
+    opposing = []
+
+    for q_idx, option_text, impacts, opt_obj in reasoning_data:
+        if not impacts or key not in impacts:
+            continue
+        val = impacts.get(key, 0)
+        reason_text = None
+        if isinstance(opt_obj, dict):
+            reason_text = opt_obj.get(f"reason_{key}")
+        if not reason_text:
+            reason_text = option_text
+
+        reason_text = clean(reason_text)
+        if not reason_text:
+            continue
+
+        if val > 0:
+            supporting.append((val, reason_text))
+        elif val < 0:
+            opposing.append((abs(val), reason_text))
+
+    supporting.sort(reverse=True, key=lambda x: x[0])
+    opposing.sort(reverse=True, key=lambda x: x[0])
+
+    bullets = []
+    # prefer up to 3 supporting reasons
+    for val, txt in supporting[:3]:
+        bullets.append(txt)
+    # if not enough, fill with opposing reasons
+    if len(bullets) < 3:
+        for val, txt in opposing[: (3 - len(bullets))]:
+            bullets.append(txt)
+
+    if not bullets:
+        bullets = ["No strong indicators were recorded."]
+
+    return bullets
 
 # Render title
 st.markdown("""
@@ -253,18 +363,20 @@ left, right = st.columns([2, 1])
 
 # Right side: Live pie chart
 with right:
-    st.markdown('<div class="results-container">', unsafe_allow_html=True)
-    st.markdown("### Live Classification")
-    soup_pct, salad_pct, sandwich_pct = normalize_pcts(st.session_state.soup_pct, st.session_state.salad_pct, st.session_state.sandwich_pct)
-    fig = create_pie_chart(soup_pct, salad_pct, sandwich_pct)
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-    
-    breakdown = pd.DataFrame({
-        'Category': ['SOUP', 'SALAD', 'SANDWICH'],
-        'Percentage': [f'{soup_pct:.1f}%', f'{salad_pct:.1f}%', f'{sandwich_pct:.1f}%']
-    })
-    st.dataframe(breakdown, use_container_width=True, hide_index=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Use a container rather than raw opening/closing HTML to avoid stray tags
+    with st.container():
+        st.markdown('<div class="results-container">', unsafe_allow_html=True)
+        st.markdown("### Live Classification")
+        soup_pct, salad_pct, sandwich_pct = normalize_pcts(st.session_state.soup_pct, st.session_state.salad_pct, st.session_state.sandwich_pct)
+        fig = create_pie_chart(soup_pct, salad_pct, sandwich_pct)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
+        breakdown = pd.DataFrame({
+            'Category': ['SOUP', 'SALAD', 'SANDWICH'],
+            'Percentage': [f'{soup_pct:.1f}%', f'{salad_pct:.1f}%', f'{sandwich_pct:.1f}%']
+        })
+        st.dataframe(breakdown, use_container_width=True, hide_index=True)
+        # do not print raw closing tags
 
 # Left side: Quiz flow
 with left:
@@ -283,15 +395,22 @@ with left:
         soup_pct, salad_pct, sandwich_pct = normalize_pcts(st.session_state.soup_pct, st.session_state.salad_pct, st.session_state.sandwich_pct)
         winner, soup_reasons, salad_reasons, sandwich_reasons = get_winner_analysis(soup_pct, salad_pct, sandwich_pct, st.session_state.reasoning_data)
         
+        percent_text = f"{soup_pct:.1f}%" if winner=="SOUP" else f"{salad_pct:.1f}%" if winner=="SALAD" else f"{sandwich_pct:.1f}%"
         st.markdown(f"""
             <div class="question-container">
                 <h2>Classification Complete</h2>
                 <h3>Result: {winner}</h3>
-                <p style="font-size: 1.2em; color: #667eea; font-weight: bold;">{getattr(locals(), winner.lower() + '_pct', 0):.1f}%</p>
+                
+<p style="font-size: 1.2em; color: #667eea; font-weight: bold;">{percent_text}</p>
+
             </div>
         """, unsafe_allow_html=True)
         
         st.markdown("### Why This Classification?")
+        # Build and show exactly two concise reasons
+        concise = build_two_reason_summary(winner, st.session_state.reasoning_data)
+        st.markdown('<div class="question-container"><h4>Concise Reasons</h4></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="reasoning-box">{concise}</div>', unsafe_allow_html=True)
         
         # Show reasoning for each category
         col1, col2, col3 = st.columns(3)
@@ -300,7 +419,8 @@ with left:
             st.markdown('<div class="explanation-box"><h4>SOUP</h4></div>', unsafe_allow_html=True)
             if soup_reasons:
                 for reason in soup_reasons[:3]:
-                    st.markdown(f'<div class="reasoning-box">{reason}</div>', unsafe_allow_html=True)
+                    r = reason.replace('—', ',').replace('*', '').strip()
+                    st.markdown(f'<div class="reasoning-box">{r}</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div class="reasoning-box">No strong soup indicators</div>', unsafe_allow_html=True)
         
@@ -308,7 +428,8 @@ with left:
             st.markdown('<div class="explanation-box"><h4>SALAD</h4></div>', unsafe_allow_html=True)
             if salad_reasons:
                 for reason in salad_reasons[:3]:
-                    st.markdown(f'<div class="reasoning-box">{reason}</div>', unsafe_allow_html=True)
+                    r = reason.replace('—', ',').replace('*', '').strip()
+                    st.markdown(f'<div class="reasoning-box">{r}</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div class="reasoning-box">No strong salad indicators</div>', unsafe_allow_html=True)
         
@@ -316,7 +437,8 @@ with left:
             st.markdown('<div class="explanation-box"><h4>SANDWICH</h4></div>', unsafe_allow_html=True)
             if sandwich_reasons:
                 for reason in sandwich_reasons[:3]:
-                    st.markdown(f'<div class="reasoning-box">{reason}</div>', unsafe_allow_html=True)
+                    r = reason.replace('—', ',').replace('*', '').strip()
+                    st.markdown(f'<div class="reasoning-box">{r}</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div class="reasoning-box">No strong sandwich indicators</div>', unsafe_allow_html=True)
         
@@ -349,27 +471,50 @@ with left:
             </div>
         """, unsafe_allow_html=True)
         
-        # Display options as buttons (2 columns)
-        for i, option in enumerate(question["options"]):
-            if i % 2 == 0:
-                col_a, col_b = st.columns(2)
-            
-            target_col = col_a if i % 2 == 0 else col_b
-            
-            with target_col:
-                if st.button(option["text"], use_container_width=True, key=f"opt_{q_idx}_{i}"):
-                    # Update percentages
-                    st.session_state.soup_pct += option["soup"]
-                    st.session_state.salad_pct += option["salad"]
-                    st.session_state.sandwich_pct += option["sandwich"]
-                    
-                    # Store reasoning
-                    st.session_state.reasoning_data.append((q_idx, option["text"], None))
-                    st.session_state.answers[q_idx] = option["text"]
-                    
-                    # Move to next
-                    st.session_state.current_question += 1
-                    if st.session_state.current_question >= len(QUIZ_QUESTIONS):
-                        st.session_state.quiz_completed = True
-                    
-                    st.rerun()
+        # Display options as a radio group + Next button to ensure single-click registration
+        option_texts = [opt["text"] for opt in question["options"]]
+        selected_text = st.radio("", option_texts, index=0, key=f"radio_{q_idx}")
+
+        next_col, skip_col = st.columns([1, 1])
+        with next_col:
+            if st.button("Next", use_container_width=True, key=f"next_{q_idx}"):
+                # find selected option
+                selected_option = None
+                for opt in question["options"]:
+                    if opt["text"] == selected_text:
+                        selected_option = opt
+                        break
+
+                if selected_option is None:
+                    # safety fallback
+                    selected_option = question["options"][0]
+
+                # Update percentages with numeric impacts
+                st.session_state.soup_pct += selected_option.get("soup", 0)
+                st.session_state.salad_pct += selected_option.get("salad", 0)
+                st.session_state.sandwich_pct += selected_option.get("sandwich", 0)
+
+                # store reasoning entry: (question index, option text, impacts dict, option object)
+                impacts = {
+                    "soup": selected_option.get("soup", 0),
+                    "salad": selected_option.get("salad", 0),
+                    "sandwich": selected_option.get("sandwich", 0),
+                }
+                st.session_state.reasoning_data.append((q_idx, selected_option.get("text"), impacts, selected_option))
+                st.session_state.answers[q_idx] = selected_option.get("text")
+
+                # Move to next question
+                st.session_state.current_question += 1
+                if st.session_state.current_question >= len(QUIZ_QUESTIONS):
+                    st.session_state.quiz_completed = True
+
+                st.rerun()
+
+        with skip_col:
+            if st.button("Skip", use_container_width=True, key=f"skip_{q_idx}"):
+                # Move forward without changing scores (record skipped)
+                st.session_state.reasoning_data.append((q_idx, "<skipped>", {"soup":0, "salad":0, "sandwich":0}, {}))
+                st.session_state.current_question += 1
+                if st.session_state.current_question >= len(QUIZ_QUESTIONS):
+                    st.session_state.quiz_completed = True
+                st.rerun(
