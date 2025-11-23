@@ -103,9 +103,9 @@ QUIZ_QUESTIONS = [
         ]
     },
     {
-        "question": "How is it typically eaten?",
+        "question": "How is it typically eaten?",   
         "options": [
-            {"text": "With a spoon", "soup": 25, "salad": -10, "sandwich": -20, "reason_soup": "Spoon is the soup tool", "reason_salad": "Forks are better for salad", "reason_sandwich": "Hand or utensils, not spoon"},
+            {"text": "With a spoon", "soup": 25, "salad": -10, "sandwich": -20, "reason_soup": "Spoon is the ideal for soup", "reason_salad": "Forks are better for salad", "reason_sandwich": "Hand or utensils, not spoon"},
             {"text": "With a fork", "soup": -10, "salad": 25, "sandwich": 0, "reason_soup": "Fork is unsuitable for soup", "reason_salad": "Fork is the salad standard", "reason_sandwich": "Neutral for sandwiches"},
             {"text": "With hands", "soup": -20, "salad": 0, "sandwich": 25, "reason_soup": "Hard to eat soup by hand", "reason_salad": "Possible but not typical", "reason_sandwich": "Hand-held is sandwich signature"},
             {"text": "Knife and fork", "soup": 0, "salad": 10, "sandwich": 10, "reason_soup": "Knife fork for soup is uncommon", "reason_salad": "Works for substantial salads", "reason_sandwich": "Works for some sandwiches"},
@@ -406,41 +406,13 @@ with left:
             </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("### Why This Classification?")
-        # Build and show exactly two concise reasons
-        concise = build_two_reason_summary(winner, st.session_state.reasoning_data)
-        st.markdown('<div class="question-container"><h4>Concise Reasons</h4></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="reasoning-box">{concise}</div>', unsafe_allow_html=True)
-        
-        # Show reasoning for each category
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown('<div class="explanation-box"><h4>SOUP</h4></div>', unsafe_allow_html=True)
-            if soup_reasons:
-                for reason in soup_reasons[:3]:
-                    r = reason.replace('—', ',').replace('*', '').strip()
-                    st.markdown(f'<div class="reasoning-box">{r}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="reasoning-box">No strong soup indicators</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="explanation-box"><h4>SALAD</h4></div>', unsafe_allow_html=True)
-            if salad_reasons:
-                for reason in salad_reasons[:3]:
-                    r = reason.replace('—', ',').replace('*', '').strip()
-                    st.markdown(f'<div class="reasoning-box">{r}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="reasoning-box">No strong salad indicators</div>', unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown('<div class="explanation-box"><h4>SANDWICH</h4></div>', unsafe_allow_html=True)
-            if sandwich_reasons:
-                for reason in sandwich_reasons[:3]:
-                    r = reason.replace('—', ',').replace('*', '').strip()
-                    st.markdown(f'<div class="reasoning-box">{r}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="reasoning-box">No strong sandwich indicators</div>', unsafe_allow_html=True)
+        st.markdown("### Key Points")
+        # Build and show up to three short bullet points (no category columns)
+        bullets = build_three_bullets(winner, st.session_state.reasoning_data)
+        st.markdown('<div class="question-container"><h4>Highlights</h4></div>', unsafe_allow_html=True)
+        for b in bullets:
+            b_clean = b.replace('<', '').replace('>', '').strip()
+            st.markdown(f'<div class="reasoning-box">• {b_clean}</div>', unsafe_allow_html=True)
         
         st.markdown("---")
         if st.button("Classify Another Food", use_container_width=True, key="reset_btn"):
@@ -517,4 +489,4 @@ with left:
                 st.session_state.current_question += 1
                 if st.session_state.current_question >= len(QUIZ_QUESTIONS):
                     st.session_state.quiz_completed = True
-                st.rerun(
+                st.rerun()
