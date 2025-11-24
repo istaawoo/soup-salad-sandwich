@@ -103,7 +103,7 @@ QUIZ_QUESTIONS = [
         ]
     },
     {
-        "question": "How is it typically eaten?",   
+        "question": "How is it typically eaten?",       
         "options": [
             {"text": "With a spoon", "soup": 25, "salad": -10, "sandwich": -20, "reason_soup": "Spoon is the ideal for soup", "reason_salad": "Forks are better for salad", "reason_sandwich": "Hand or utensils, not spoon"},
             {"text": "With a fork", "soup": -10, "salad": 25, "sandwich": 0, "reason_soup": "Fork is unsuitable for soup", "reason_salad": "Fork is the salad standard", "reason_sandwich": "Neutral for sandwiches"},
